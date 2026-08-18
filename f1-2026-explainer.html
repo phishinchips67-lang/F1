@@ -1,0 +1,1798 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>F1 2026 Power Unit — How It Works</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&family=Barlow:wght@400;500;600&family=Share+Tech+Mono&display=swap');
+
+  :root {
+    --red:     #E8002D;
+    --red-dim: #8B0019;
+    --yellow:  #FFD700;
+    --white:   #F0EEE9;
+    --offwhite:#C8C4BC;
+    --mid:     #4A4640;
+    --dark:    #1A1714;
+    --darker:  #0D0B0A;
+    --electric:#00D4FF;
+    --electric-dim:#005F7A;
+    --green:   #39FF14;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--darker);
+    color: var(--white);
+    font-family: 'Barlow', sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  /* ── TICKER ── */
+  .ticker {
+    background: var(--red);
+    padding: 6px 0;
+    overflow: hidden;
+    white-space: nowrap;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 12px;
+    letter-spacing: 0.08em;
+    color: #fff;
+  }
+  .ticker-inner {
+    display: inline-block;
+    animation: ticker 30s linear infinite;
+  }
+  .ticker-inner span { margin: 0 40px; }
+  @keyframes ticker {
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
+  }
+
+  /* ── HERO ── */
+  .hero {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 60px 24px;
+    overflow: hidden;
+  }
+
+  .hero-bg {
+    position: absolute; inset: 0;
+    background:
+      radial-gradient(ellipse 80% 60% at 50% 100%, rgba(232,0,45,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 60% 40% at 50% 0%, rgba(0,212,255,0.08) 0%, transparent 60%),
+      var(--darker);
+  }
+
+  /* animated track lines in hero */
+  .track-lines {
+    position: absolute; inset: 0; pointer-events: none;
+    overflow: hidden;
+  }
+  .track-lines::before,
+  .track-lines::after {
+    content: '';
+    position: absolute;
+    left: -10%;
+    width: 120%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgba(232,0,45,0.4), transparent);
+    animation: scanline 4s ease-in-out infinite;
+  }
+  .track-lines::before { top: 30%; animation-delay: 0s; }
+  .track-lines::after  { top: 70%; animation-delay: 2s; }
+  @keyframes scanline {
+    0%,100% { opacity: 0; transform: scaleX(0.3) translateX(-20%); }
+    50%      { opacity: 1; transform: scaleX(1)   translateX(0); }
+  }
+
+  .hero-eyebrow {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.25em;
+    color: var(--electric);
+    text-transform: uppercase;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .hero-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: clamp(52px, 12vw, 120px);
+    line-height: 0.92;
+    text-transform: uppercase;
+    position: relative;
+    letter-spacing: -0.01em;
+  }
+  .hero-title .line-red { color: var(--red); display: block; }
+  .hero-title .line-white { color: var(--white); display: block; }
+  .hero-title .line-dim { color: var(--offwhite); display: block; font-weight: 400; font-size: 0.55em; letter-spacing: 0.04em; margin-top: 8px; }
+
+  .hero-sub {
+    margin-top: 28px;
+    font-size: 15px;
+    color: var(--offwhite);
+    max-width: 500px;
+    position: relative;
+    line-height: 1.7;
+  }
+
+  .hero-scroll {
+    margin-top: 48px;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: var(--mid);
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.2em;
+    cursor: pointer;
+    text-decoration: none;
+  }
+  .hero-scroll .arrow {
+    width: 24px; height: 24px;
+    border-right: 2px solid var(--red);
+    border-bottom: 2px solid var(--red);
+    transform: rotate(45deg);
+    animation: bounce 2s ease-in-out infinite;
+  }
+  @keyframes bounce {
+    0%,100% { transform: rotate(45deg) translateY(0); }
+    50%      { transform: rotate(45deg) translateY(6px); }
+  }
+
+  /* ── NAV DOTS ── */
+  .nav-dots {
+    position: fixed;
+    right: 20px;
+    top: 50%;
+    transform: translateY(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 100;
+  }
+  .nav-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--mid);
+    cursor: pointer;
+    transition: all 0.3s;
+    border: none;
+    padding: 0;
+  }
+  .nav-dot.active { background: var(--red); transform: scale(1.4); }
+
+  /* ── SECTIONS ── */
+  .section {
+    padding: 80px 24px;
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  .section-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.3em;
+    color: var(--red);
+    text-transform: uppercase;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    max-width: 60px;
+    height: 1px;
+    background: var(--red-dim);
+  }
+
+  .section-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 48px);
+    text-transform: uppercase;
+    line-height: 1.05;
+    margin-bottom: 20px;
+    letter-spacing: 0.01em;
+  }
+
+  .section-body {
+    color: var(--offwhite);
+    font-size: 15px;
+    line-height: 1.75;
+    max-width: 680px;
+  }
+  .section-body strong { color: var(--white); }
+
+  /* ── DIVIDER ── */
+  .divider {
+    width: 100%;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--mid), transparent);
+    margin: 0 auto;
+    max-width: 900px;
+    padding: 0 24px;
+  }
+
+  /* ── POWER UNIT DIAGRAM ── */
+  .pu-diagram {
+    margin: 40px 0;
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    padding: 32px 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .pu-diagram::before {
+    content: 'POWER UNIT SCHEMATIC';
+    position: absolute;
+    top: 12px; left: 16px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.25em;
+    color: var(--mid);
+  }
+
+  .pu-components {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    flex-wrap: wrap;
+    margin-top: 16px;
+  }
+
+  .pu-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: transform 0.2s;
+  }
+  .pu-block:hover { transform: translateY(-4px); }
+  .pu-block:hover .pu-box { border-color: var(--yellow); }
+
+  .pu-box {
+    width: 90px;
+    height: 70px;
+    border: 1px solid var(--mid);
+    border-radius: 3px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .pu-box.ice  { background: rgba(232,0,45,0.08); border-color: var(--red-dim); }
+  .pu-box.tc   { background: rgba(255,215,0,0.06); border-color: rgba(255,215,0,0.3); }
+  .pu-box.mguk { background: rgba(0,212,255,0.08); border-color: var(--electric-dim); }
+  .pu-box.es   { background: rgba(57,255,20,0.06); border-color: rgba(57,255,20,0.3); }
+  .pu-box.ce   { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.15); }
+
+  .pu-icon { font-size: 22px; line-height: 1; }
+  .pu-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--offwhite);
+    text-align: center;
+  }
+  .pu-label {
+    font-size: 11px;
+    color: var(--mid);
+    text-align: center;
+    max-width: 90px;
+  }
+
+  .pu-arrow {
+    display: flex;
+    align-items: center;
+    padding: 0 4px;
+    margin-bottom: 30px;
+  }
+  .pu-arrow svg { opacity: 0.4; }
+
+  /* tooltip */
+  .pu-tooltip {
+    position: absolute;
+    bottom: -60px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--dark);
+    border: 1px solid var(--red-dim);
+    padding: 6px 10px;
+    font-size: 11px;
+    color: var(--offwhite);
+    white-space: nowrap;
+    border-radius: 2px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+  }
+  .pu-block:hover .pu-tooltip { opacity: 1; }
+
+  /* ── LIVE LAP SIMULATOR ── */
+  .simulator {
+    margin: 40px 0;
+    background: var(--dark);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+
+  .sim-header {
+    background: rgba(232,0,45,0.12);
+    border-bottom: 1px solid var(--red-dim);
+    padding: 14px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .sim-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--white);
+  }
+  .sim-badge {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    padding: 3px 8px;
+    background: var(--red);
+    color: #fff;
+    border-radius: 2px;
+    letter-spacing: 0.1em;
+  }
+
+  /* track strip */
+  .track-strip {
+    position: relative;
+    height: 80px;
+    background: rgba(255,255,255,0.02);
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    overflow: hidden;
+    cursor: pointer;
+  }
+
+  .track-zones {
+    display: flex;
+    height: 100%;
+    width: 100%;
+  }
+  .zone {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    border-right: 1px solid rgba(255,255,255,0.05);
+    transition: background 0.3s;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+  .zone.accel  { background: rgba(232,0,45,0.06); }
+  .zone.flat   { background: rgba(255,215,0,0.04); }
+  .zone.brake  { background: rgba(0,212,255,0.06); }
+  .zone.corner { background: rgba(255,255,255,0.02); }
+  .zone.active-zone {
+    background: rgba(255,255,255,0.08) !important;
+    color: var(--white);
+  }
+
+  /* car dot */
+  .car-dot {
+    position: absolute;
+    top: 50%;
+    left: 0%;
+    transform: translate(-50%, -50%);
+    width: 16px; height: 16px;
+    background: var(--red);
+    border-radius: 50%;
+    box-shadow: 0 0 12px var(--red), 0 0 24px rgba(232,0,45,0.4);
+    transition: left 0.6s cubic-bezier(0.4,0,0.2,1);
+    z-index: 5;
+  }
+  .car-dot::after {
+    content: '🏎';
+    position: absolute;
+    left: 50%; top: 50%;
+    transform: translate(-50%,-50%);
+    font-size: 14px;
+    line-height: 1;
+  }
+
+  /* gauges */
+  .sim-gauges {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 1px;
+    background: rgba(255,255,255,0.05);
+  }
+
+  .gauge {
+    background: var(--dark);
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .gauge-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+  .gauge-value {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 28px;
+    line-height: 1;
+    transition: color 0.3s;
+  }
+  .gauge-bar-bg {
+    height: 3px;
+    background: rgba(255,255,255,0.07);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+  .gauge-bar {
+    height: 100%;
+    border-radius: 2px;
+    transition: width 0.6s cubic-bezier(0.4,0,0.2,1), background 0.3s;
+    width: 0%;
+  }
+
+  .sim-phase-info {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    gap: 20px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+  }
+  .phase-tag {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    padding: 4px 10px;
+    border-radius: 2px;
+    text-transform: uppercase;
+    white-space: nowrap;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .phase-tag.accel  { background: rgba(232,0,45,0.2);  color: var(--red); border: 1px solid var(--red-dim); }
+  .phase-tag.flat   { background: rgba(255,215,0,0.1);  color: var(--yellow); border: 1px solid rgba(255,215,0,0.3); }
+  .phase-tag.brake  { background: rgba(0,212,255,0.1);  color: var(--electric); border: 1px solid var(--electric-dim); }
+  .phase-tag.corner { background: rgba(255,255,255,0.05); color: var(--offwhite); border: 1px solid rgba(255,255,255,0.1); }
+
+  .phase-desc {
+    font-size: 13px;
+    color: var(--offwhite);
+    line-height: 1.6;
+  }
+  .phase-desc strong { color: var(--white); }
+
+  .sim-controls {
+    padding: 16px 20px;
+    border-top: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .btn {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 9px 20px;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .btn-red   { background: var(--red); color: #fff; }
+  .btn-red:hover { background: #c0001f; }
+  .btn-ghost { background: transparent; color: var(--offwhite); border: 1px solid var(--mid); }
+  .btn-ghost:hover { border-color: var(--white); color: var(--white); }
+  .btn:disabled { opacity: 0.3; cursor: not-allowed; }
+
+  .lap-counter {
+    margin-left: auto;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    color: var(--mid);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── ENERGY FLOW DIAGRAM ── */
+  .energy-flow {
+    margin: 40px 0;
+    position: relative;
+  }
+
+  .flow-mode-tabs {
+    display: flex;
+    gap: 2px;
+    margin-bottom: 24px;
+  }
+  .flow-tab {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 18px;
+    border: none;
+    cursor: pointer;
+    background: rgba(255,255,255,0.05);
+    color: var(--mid);
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+  .flow-tab.active {
+    background: var(--red);
+    color: #fff;
+  }
+  .flow-tab:not(.active):hover {
+    background: rgba(255,255,255,0.08);
+    color: var(--offwhite);
+  }
+
+  .flow-canvas-wrap {
+    background: rgba(255,255,255,0.02);
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 4px;
+    padding: 24px;
+    position: relative;
+  }
+
+  .flow-nodes {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    grid-template-rows: auto auto;
+    gap: 16px;
+    align-items: center;
+  }
+
+  .flow-node {
+    padding: 14px 10px;
+    border-radius: 3px;
+    text-align: center;
+    border: 1px solid;
+    position: relative;
+    transition: box-shadow 0.4s;
+  }
+  .flow-node.active-node {
+    box-shadow: 0 0 20px currentColor;
+  }
+  .flow-node.node-ice   { border-color: var(--red-dim);   background: rgba(232,0,45,0.06);   color: var(--red); }
+  .flow-node.node-mguk  { border-color: var(--electric-dim); background: rgba(0,212,255,0.06); color: var(--electric); }
+  .flow-node.node-bat   { border-color: rgba(57,255,20,0.4); background: rgba(57,255,20,0.05); color: var(--green); }
+  .flow-node.node-crank { border-color: rgba(255,215,0,0.4); background: rgba(255,215,0,0.05); color: var(--yellow); }
+  .flow-node.node-wheel { border-color: rgba(255,255,255,0.2); background: rgba(255,255,255,0.03); color: var(--white); }
+  .flow-node.node-inv   { border-color: rgba(255,255,255,0.15); background: rgba(255,255,255,0.03); color: var(--offwhite); }
+
+  .flow-node-icon { font-size: 24px; margin-bottom: 4px; }
+  .flow-node-name {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+  .flow-node-stat {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 16px;
+    margin-top: 4px;
+  }
+
+  .flow-arrows {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+  }
+  .flow-arrow-line {
+    height: 2px;
+    width: 100%;
+    background: var(--mid);
+    position: relative;
+    transition: background 0.4s, box-shadow 0.4s;
+    border-radius: 1px;
+  }
+  .flow-arrow-line.active-arrow {
+    box-shadow: 0 0 8px currentColor;
+  }
+  .flow-arrow-line.arrow-deploy { background: var(--red); color: var(--red); }
+  .flow-arrow-line.arrow-regen  { background: var(--electric); color: var(--electric); }
+  .flow-arrow-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 8px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-align: center;
+  }
+
+  .flow-legend {
+    display: flex;
+    gap: 20px;
+    margin-top: 16px;
+    flex-wrap: wrap;
+  }
+  .flow-legend-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--offwhite);
+  }
+  .legend-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+  }
+
+  /* ── BATTERY METER ── */
+  .battery-section {
+    margin: 40px 0;
+    background: var(--dark);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 4px;
+    padding: 28px 24px;
+  }
+  .battery-title {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.25em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 20px;
+  }
+
+  .battery-tracks {
+    display: flex;
+    gap: 12px;
+    align-items: flex-end;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+  .battery-track-item {
+    flex: 1;
+    min-width: 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .bt-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.1em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+  .bt-bar-bg {
+    height: 120px;
+    background: rgba(255,255,255,0.04);
+    border-radius: 2px;
+    border: 1px solid rgba(255,255,255,0.07);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    overflow: hidden;
+    position: relative;
+  }
+  .bt-bar-fill {
+    transition: height 0.8s cubic-bezier(0.4,0,0.2,1), background 0.4s;
+    width: 100%;
+    border-radius: 1px;
+  }
+  .bt-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    text-align: center;
+  }
+
+  /* threshold line */
+  .bt-bar-bg .threshold {
+    position: absolute;
+    left: 0; right: 0;
+    height: 1px;
+    background: rgba(255,215,0,0.4);
+    top: 55%;
+  }
+  .bt-bar-bg .threshold-label {
+    position: absolute;
+    right: 4px;
+    top: 53%;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 7px;
+    color: rgba(255,215,0,0.6);
+    letter-spacing: 0.1em;
+  }
+
+  /* ── MGU-K DEEP DIVE ── */
+  .mguk-diagram {
+    margin: 40px 0;
+    background: rgba(0,212,255,0.03);
+    border: 1px solid var(--electric-dim);
+    border-radius: 4px;
+    padding: 28px 24px;
+  }
+
+  .motor-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 32px;
+    flex-wrap: wrap;
+    margin: 20px 0;
+  }
+
+  .rotor-ring {
+    position: relative;
+    width: 140px; height: 140px;
+  }
+  .rotor-ring svg {
+    width: 100%; height: 100%;
+    animation: rotor-spin 3s linear infinite;
+  }
+  .rotor-ring.braking svg { animation-direction: reverse; animation-duration: 1.5s; }
+
+  @keyframes rotor-spin {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+
+  .motor-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mstat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .mstat-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--mid);
+    text-transform: uppercase;
+  }
+  .mstat-val {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 22px;
+    color: var(--electric);
+  }
+  .mstat-sub {
+    font-size: 11px;
+    color: var(--mid);
+  }
+
+  .motor-mode-toggle {
+    display: flex;
+    gap: 2px;
+    margin-top: 8px;
+  }
+  .mmode-btn {
+    flex: 1;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 8px 12px;
+    border: 1px solid var(--mid);
+    background: transparent;
+    color: var(--mid);
+    cursor: pointer;
+    transition: all 0.2s;
+    border-radius: 2px;
+  }
+  .mmode-btn.active {
+    background: var(--electric);
+    border-color: var(--electric);
+    color: var(--darker);
+  }
+  .mmode-btn.active.brake-active {
+    background: var(--electric);
+    border-color: var(--electric);
+  }
+
+  /* ── FOC EXPLAINER ── */
+  .foc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    margin: 24px 0;
+  }
+  .foc-card {
+    background: rgba(255,255,255,0.03);
+    border: 1px solid rgba(255,255,255,0.07);
+    border-radius: 3px;
+    padding: 16px;
+  }
+  .foc-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 36px;
+    color: var(--red);
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .foc-label {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.15em;
+    color: var(--mid);
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .foc-desc {
+    font-size: 12px;
+    color: var(--offwhite);
+    line-height: 1.6;
+  }
+
+  /* ── COMPARE TABLE ── */
+  .compare-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 28px 0;
+    font-size: 13px;
+  }
+  .compare-table th {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 9px;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--mid);
+    padding: 10px 16px;
+    text-align: left;
+    border-bottom: 1px solid rgba(255,255,255,0.07);
+  }
+  .compare-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid rgba(255,255,255,0.04);
+    color: var(--offwhite);
+    vertical-align: top;
+  }
+  .compare-table tr:hover td { background: rgba(255,255,255,0.02); }
+  .compare-table td:first-child {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 11px;
+    letter-spacing: 0.05em;
+    color: var(--white);
+  }
+  .compare-table td.highlight { color: var(--yellow); font-weight: 600; }
+  .compare-table td.electric  { color: var(--electric); }
+  .compare-table td.red-val   { color: var(--red); }
+
+  /* ── FINAL STATS BAR ── */
+  .stats-bar {
+    background: var(--red);
+    padding: 32px 24px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 24px;
+    max-width: 900px;
+    margin: 0 auto 0;
+  }
+  .stat-item { text-align: center; }
+  .stat-num {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 900;
+    font-size: 40px;
+    line-height: 1;
+    color: #fff;
+  }
+  .stat-unit {
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: rgba(255,255,255,0.6);
+    text-transform: uppercase;
+    margin-top: 4px;
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center;
+    padding: 40px 24px;
+    font-family: 'Share Tech Mono', monospace;
+    font-size: 10px;
+    letter-spacing: 0.15em;
+    color: var(--mid);
+    border-top: 1px solid rgba(255,255,255,0.05);
+    max-width: 900px;
+    margin: 0 auto;
+  }
+
+  @media (max-width: 600px) {
+    .pu-components { gap: 8px; }
+    .pu-box { width: 70px; height: 56px; }
+    .flow-nodes { grid-template-columns: 1fr 1fr; }
+    .nav-dots { display: none; }
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<!-- TICKER -->
+<div class="ticker">
+  <div class="ticker-inner">
+    <span>SF-26 POWER UNIT</span>
+    <span>ICE: 400kW / 536hp</span>
+    <span>MGU-K: 350kW / 469hp</span>
+    <span>TOTAL: ~750kW / 1000hp</span>
+    <span>BATTERY: 4MJ DELTA LIMIT</span>
+    <span>RECOVERY: 9MJ PER LAP MAX</span>
+    <span>MGU-K RPM: 50,000</span>
+    <span>MOTOR TYPE: PMSM</span>
+    <span>INVERTER: SiC MOSFET</span>
+    <span>CONTROL: FIELD ORIENTED (FOC)</span>
+    <span>50% SUSTAINABLE FUEL</span>
+    <span>SF-26 POWER UNIT</span>
+    <span>ICE: 400kW / 536hp</span>
+    <span>MGU-K: 350kW / 469hp</span>
+    <span>TOTAL: ~750kW / 1000hp</span>
+    <span>BATTERY: 4MJ DELTA LIMIT</span>
+    <span>RECOVERY: 9MJ PER LAP MAX</span>
+    <span>MGU-K RPM: 50,000</span>
+    <span>MOTOR TYPE: PMSM</span>
+    <span>INVERTER: SiC MOSFET</span>
+    <span>CONTROL: FIELD ORIENTED (FOC)</span>
+    <span>50% SUSTAINABLE FUEL</span>
+  </div>
+</div>
+
+<!-- NAV DOTS -->
+<div class="nav-dots" id="navDots"></div>
+
+<!-- HERO -->
+<section class="hero" data-section="0">
+  <div class="hero-bg"></div>
+  <div class="track-lines"></div>
+  <div class="hero-eyebrow">Formula 1 · 2026 · Technical Briefing</div>
+  <h1 class="hero-title">
+    <span class="line-red">The Ferrari</span>
+    <span class="line-white">SF-26</span>
+    <span class="line-dim">Power Unit — Explained</span>
+  </h1>
+  <p class="hero-sub">
+    One crankshaft. Two power sources. 1,000 horsepower.
+    Here's exactly what happens every time Lewis Hamilton touches the throttle.
+  </p>
+  <a class="hero-scroll" href="#section-pu">
+    <span>SCROLL TO EXPLORE</span>
+    <div class="arrow"></div>
+  </a>
+</section>
+
+<!-- SECTION 1: POWER UNIT OVERVIEW -->
+<section id="section-pu" data-section="1">
+  <div class="section">
+    <div class="section-label">Section 01 — Architecture</div>
+    <h2 class="section-title">Not Two Engines.<br>One Integrated System.</h2>
+    <p class="section-body">
+      The SF-26 doesn't have two separate engines running in parallel.
+      It has <strong>one power unit</strong> — five physical components that share a single crankshaft
+      and are coordinated every millisecond by Ferrari's control electronics.
+      Hover each block below to see what it does.
+    </p>
+
+    <div class="pu-diagram">
+      <div class="pu-components">
+
+        <div class="pu-block">
+          <div class="pu-box ice">
+            <div class="pu-icon">🔥</div>
+            <div class="pu-name">ICE</div>
+          </div>
+          <div class="pu-label">1.6L V6 Turbo</div>
+          <div class="pu-tooltip">400kW · Burns sustainable fuel · Drives crankshaft</div>
+        </div>
+
+        <div class="pu-arrow">
+          <svg width="28" height="12" viewBox="0 0 28 12"><path d="M0 6h22M18 1l6 5-6 5" stroke="#4A4640" stroke-width="1.5" fill="none"/></svg>
+        </div>
+
+        <div class="pu-block">
+          <div class="pu-box tc">
+            <div class="pu-icon">💨</div>
+            <div class="pu-name">TC</div>
+          </div>
+          <div class="pu-label">Turbocharger</div>
+          <div class="pu-tooltip">Compresses intake air · More air = more fuel = more power</div>
+        </div>
+
+        <div class="pu-arrow">
+          <svg width="28" height="12" viewBox="0 0 28 12"><path d="M0 6h22M18 1l6 5-6 5" stroke="#4A4640" stroke-width="1.5" fill="none"/></svg>
+        </div>
+
+        <div class="pu-block">
+          <div class="pu-box mguk">
+            <div class="pu-icon">⚡</div>
+            <div class="pu-name">MGU-K</div>
+          </div>
+          <div class="pu-label">Electric Motor/Generator</div>
+          <div class="pu-tooltip">350kW · Geared to crankshaft · Motor on accel, Generator on braking</div>
+        </div>
+
+        <div class="pu-arrow">
+          <svg width="28" height="12" viewBox="0 0 28 12"><path d="M0 6h22M18 1l6 5-6 5" stroke="#4A4640" stroke-width="1.5" fill="none"/></svg>
+        </div>
+
+        <div class="pu-block">
+          <div class="pu-box es">
+            <div class="pu-icon">🔋</div>
+            <div class="pu-name">ES</div>
+          </div>
+          <div class="pu-label">Energy Store (Battery)</div>
+          <div class="pu-tooltip">Li-Ion · 4MJ delta limit · Oil-cooled · Powers MGU-K</div>
+        </div>
+
+        <div class="pu-arrow">
+          <svg width="28" height="12" viewBox="0 0 28 12"><path d="M0 6h22M18 1l6 5-6 5" stroke="#4A4640" stroke-width="1.5" fill="none"/></svg>
+        </div>
+
+        <div class="pu-block">
+          <div class="pu-box ce">
+            <div class="pu-icon">🧠</div>
+            <div class="pu-name">CE</div>
+          </div>
+          <div class="pu-label">Control Electronics</div>
+          <div class="pu-tooltip">Ferrari's software brain · FOC inverter · Manages all energy flow</div>
+        </div>
+
+      </div>
+    </div>
+
+    <p class="section-body">
+      The ICE and MGU-K both push torque into the <strong>same crankshaft simultaneously.</strong>
+      The rear wheels receive the combined force from both — they can't tell which source it came from.
+      That's the whole trick.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SECTION 2: LAP SIMULATOR -->
+<section id="section-sim" data-section="2">
+  <div class="section">
+    <div class="section-label">Section 02 — Live Lap</div>
+    <h2 class="section-title">What Happens<br>Every Lap</h2>
+    <p class="section-body">
+      The MGU-K is <strong>never idle.</strong> It's deploying, recovering, or harvesting at every point on track.
+      Step through each phase below to see exactly what both power sources are doing.
+    </p>
+
+    <div class="simulator">
+      <div class="sim-header">
+        <span class="sim-title">Lap Simulator — Ferrari SF-26</span>
+        <span class="sim-badge" id="simBadge">READY</span>
+      </div>
+
+      <!-- Track strip -->
+      <div class="track-strip">
+        <div class="track-zones" id="trackZones">
+          <div class="zone accel"  data-phase="0">CORNER EXIT</div>
+          <div class="zone flat"   data-phase="1">FULL THROTTLE</div>
+          <div class="zone flat"   data-phase="2">SUPERCLIP</div>
+          <div class="zone brake"  data-phase="3">BRAKING ZONE</div>
+          <div class="zone corner" data-phase="4">MID-CORNER</div>
+          <div class="zone accel"  data-phase="5">LIFT &amp; COAST</div>
+        </div>
+        <div class="car-dot" id="carDot"></div>
+      </div>
+
+      <!-- Gauges -->
+      <div class="sim-gauges">
+        <div class="gauge">
+          <div class="gauge-label">ICE Power</div>
+          <div class="gauge-value" id="gIce" style="color:var(--red)">0 kW</div>
+          <div class="gauge-bar-bg"><div class="gauge-bar" id="bIce" style="background:var(--red)"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">MGU-K Power</div>
+          <div class="gauge-value" id="gMguk" style="color:var(--electric)">0 kW</div>
+          <div class="gauge-bar-bg"><div class="gauge-bar" id="bMguk" style="background:var(--electric)"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Battery SoC</div>
+          <div class="gauge-value" id="gBat" style="color:var(--green)">0%</div>
+          <div class="gauge-bar-bg"><div class="gauge-bar" id="bBat" style="background:var(--green)"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Total Power</div>
+          <div class="gauge-value" id="gTotal" style="color:var(--yellow)">0 kW</div>
+          <div class="gauge-bar-bg"><div class="gauge-bar" id="bTotal" style="background:var(--yellow)"></div></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">MGU-K Mode</div>
+          <div class="gauge-value" id="gMode" style="font-size:18px; color:var(--offwhite)">—</div>
+          <div class="gauge-bar-bg" style="height:3px; background:transparent"></div>
+        </div>
+        <div class="gauge">
+          <div class="gauge-label">Recovery Rate</div>
+          <div class="gauge-value" id="gRegen" style="color:var(--electric)">0 kW</div>
+          <div class="gauge-bar-bg"><div class="gauge-bar" id="bRegen" style="background:var(--electric)"></div></div>
+        </div>
+      </div>
+
+      <!-- Phase info -->
+      <div class="sim-phase-info">
+        <span class="phase-tag accel" id="phaseTag">CORNER EXIT</span>
+        <p class="phase-desc" id="phaseDesc">Press NEXT PHASE to start the lap.</p>
+      </div>
+
+      <!-- Controls -->
+      <div class="sim-controls">
+        <button class="btn btn-red" id="btnNext" onclick="nextPhase()">▶ Next Phase</button>
+        <button class="btn btn-ghost" onclick="resetSim()">↺ Reset</button>
+        <button class="btn btn-ghost" id="btnAuto" onclick="autoPlay()">⏩ Auto Play</button>
+        <span class="lap-counter" id="lapCounter">Phase 0 / 6</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SECTION 3: ENERGY FLOW -->
+<section id="section-flow" data-section="3">
+  <div class="section">
+    <div class="section-label">Section 03 — Energy Flow</div>
+    <h2 class="section-title">Deploy vs Recover:<br>The Numbers</h2>
+    <p class="section-body">
+      The MGU-K peaks at <strong>350kW in both directions</strong> — but deployment and recovery are
+      not equal. The asymmetry is the entire strategic puzzle of 2026.
+    </p>
+
+    <div class="energy-flow">
+      <div class="flow-mode-tabs">
+        <button class="flow-tab active" onclick="setFlowMode('deploy')" id="tabDeploy">⚡ Deploying</button>
+        <button class="flow-tab" onclick="setFlowMode('regen')"  id="tabRegen">🔄 Recovering</button>
+      </div>
+
+      <div class="flow-canvas-wrap">
+        <div class="flow-nodes" id="flowNodes">
+          <!-- Row 1 -->
+          <div class="flow-node node-bat" id="fn-bat">
+            <div class="flow-node-icon">🔋</div>
+            <div class="flow-node-name">Battery</div>
+            <div class="flow-node-stat" id="fn-bat-stat">4 MJ</div>
+          </div>
+          <div class="flow-arrows">
+            <div class="flow-arrow-line" id="fa-bat-inv" style="background:var(--mid)"></div>
+            <div class="flow-arrow-label" id="fa-bat-inv-lbl">DC link</div>
+          </div>
+          <div class="flow-node node-inv" id="fn-inv">
+            <div class="flow-node-icon">🔌</div>
+            <div class="flow-node-name">SiC Inverter</div>
+            <div class="flow-node-stat" id="fn-inv-stat">DC↔AC</div>
+          </div>
+
+          <!-- Row 2 -->
+          <div class="flow-node node-ice" id="fn-ice">
+            <div class="flow-node-icon">🔥</div>
+            <div class="flow-node-name">ICE</div>
+            <div class="flow-node-stat">400 kW</div>
+          </div>
+          <div class="flow-arrows">
+            <div class="flow-arrow-line" id="fa-inv-mguk"></div>
+            <div class="flow-arrow-label" id="fa-inv-mguk-lbl">3-phase AC</div>
+          </div>
+          <div class="flow-node node-mguk" id="fn-mguk">
+            <div class="flow-node-icon">⚡</div>
+            <div class="flow-node-name">MGU-K</div>
+            <div class="flow-node-stat">350 kW</div>
+          </div>
+
+          <!-- Row 3 -->
+          <div></div>
+          <div class="flow-arrows">
+            <div class="flow-arrow-line" id="fa-to-crank"></div>
+            <div class="flow-arrow-label" id="fa-to-crank-lbl">torque</div>
+          </div>
+          <div class="flow-node node-crank" id="fn-crank">
+            <div class="flow-node-icon">⚙️</div>
+            <div class="flow-node-name">Crankshaft</div>
+            <div class="flow-node-stat" id="fn-crank-stat">~750 kW</div>
+          </div>
+        </div>
+
+        <div class="flow-legend">
+          <div class="flow-legend-item">
+            <div class="legend-dot" style="background:var(--red)"></div>
+            <span>ICE torque path</span>
+          </div>
+          <div class="flow-legend-item">
+            <div class="legend-dot" style="background:var(--electric)"></div>
+            <span>Electric path</span>
+          </div>
+          <div class="flow-legend-item">
+            <div class="legend-dot" style="background:var(--green)"></div>
+            <span>Battery charging</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Compare table -->
+    <table class="compare-table">
+      <thead>
+        <tr>
+          <th>Parameter</th>
+          <th>Deploying (Accel)</th>
+          <th>Recovering (Braking)</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Peak Power</td>
+          <td class="highlight">350 kW</td>
+          <td class="electric">350 kW</td>
+        </tr>
+        <tr>
+          <td>Energy Cap Per Lap</td>
+          <td class="highlight">UNLIMITED*</td>
+          <td class="electric">9 MJ max</td>
+        </tr>
+        <tr>
+          <td>Battery Delta Limit</td>
+          <td colspan="2" style="color:var(--yellow); text-align:center">±4 MJ per lap (both directions)</td>
+        </tr>
+        <tr>
+          <td>Duration at Full Power</td>
+          <td class="highlight">~11.5s per 4MJ burst</td>
+          <td class="electric">~25s total if 9MJ recovered</td>
+        </tr>
+        <tr>
+          <td>Speed Limit</td>
+          <td class="red-val">Tapers above 290 km/h → 0 at 355 km/h</td>
+          <td class="electric">No speed limit on recovery</td>
+        </tr>
+        <tr>
+          <td>Track Dependency</td>
+          <td class="highlight">Same everywhere</td>
+          <td class="electric">5 MJ (Monza) → 9 MJ (Monaco)</td>
+        </tr>
+        <tr>
+          <td>Direction of Energy</td>
+          <td class="red-val">Battery → Crankshaft</td>
+          <td class="electric">Crankshaft → Battery</td>
+        </tr>
+      </tbody>
+    </table>
+    <p class="section-body" style="font-size:12px; color:var(--mid)">
+      * Unlimited deployment means no hard cap — but bounded by battery state of charge and the 4MJ delta rule per lap.
+    </p>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SECTION 4: MGU-K PHYSICS -->
+<section id="section-mguk" data-section="4">
+  <div class="section">
+    <div class="section-label">Section 04 — Physics</div>
+    <h2 class="section-title">How the<br>MGU-K Works</h2>
+    <p class="section-body">
+      It's a <strong>Permanent Magnet Synchronous Machine (PMSM)</strong> — same fundamental principle
+      as the servo drives and VFD motors in industrial automation, operating at
+      extreme power density and 50,000 RPM. One machine. Two modes.
+      The inverter decides which direction energy flows.
+    </p>
+
+    <div class="mguk-diagram">
+      <!-- Mode toggle -->
+      <div class="motor-mode-toggle">
+        <button class="mmode-btn active" id="modeMotor" onclick="setMotorMode('motor')">⚡ Motor Mode (Accelerating)</button>
+        <button class="mmode-btn" id="modeGen" onclick="setMotorMode('gen')">🔄 Generator Mode (Braking)</button>
+      </div>
+
+      <div class="motor-visual" style="margin-top:24px">
+        <!-- Animated rotor SVG -->
+        <div class="rotor-ring" id="rotorRing">
+          <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+            <!-- Stator -->
+            <circle cx="70" cy="70" r="65" fill="none" stroke="rgba(255,255,255,0.08)" stroke-width="8"/>
+            <!-- Stator windings -->
+            <rect x="4"  y="62" width="18" height="16" rx="2" fill="rgba(0,212,255,0.3)" />
+            <rect x="118" y="62" width="18" height="16" rx="2" fill="rgba(0,212,255,0.3)" />
+            <rect x="62" y="4"  width="16" height="18" rx="2" fill="rgba(0,212,255,0.3)" />
+            <rect x="62" y="118" width="16" height="18" rx="2" fill="rgba(0,212,255,0.3)" />
+            <rect x="20" y="20" width="14" height="14" rx="2" fill="rgba(0,212,255,0.2)" transform="rotate(45 27 27)"/>
+            <rect x="106" y="20" width="14" height="14" rx="2" fill="rgba(0,212,255,0.2)" transform="rotate(45 113 27)"/>
+            <rect x="20" y="106" width="14" height="14" rx="2" fill="rgba(0,212,255,0.2)" transform="rotate(45 27 113)"/>
+            <rect x="106" y="106" width="14" height="14" rx="2" fill="rgba(0,212,255,0.2)" transform="rotate(45 113 113)"/>
+            <!-- Rotor -->
+            <circle cx="70" cy="70" r="38" fill="rgba(0,0,0,0.6)" stroke="rgba(255,255,255,0.1)" stroke-width="1"/>
+            <!-- Permanent magnets on rotor -->
+            <rect x="68" y="34" width="4" height="14" rx="1" fill="#E8002D" opacity="0.9"/>
+            <rect x="68" y="92" width="4" height="14" rx="1" fill="#4444ff" opacity="0.9"/>
+            <rect x="34" y="68" width="14" height="4" rx="1" fill="#4444ff" opacity="0.9"/>
+            <rect x="92" y="68" width="14" height="4" rx="1" fill="#E8002D" opacity="0.9"/>
+            <!-- Centre shaft -->
+            <circle cx="70" cy="70" r="8" fill="rgba(255,215,0,0.3)" stroke="rgba(255,215,0,0.6)" stroke-width="1"/>
+            <circle cx="70" cy="70" r="3" fill="var(--yellow)"/>
+            <!-- Field lines (animated, motor mode) -->
+            <circle cx="70" cy="70" r="50" fill="none" stroke="rgba(0,212,255,0.12)" stroke-width="1" stroke-dasharray="4 6"/>
+            <circle cx="70" cy="70" r="56" fill="none" stroke="rgba(232,0,45,0.08)" stroke-width="1" stroke-dasharray="3 8"/>
+          </svg>
+        </div>
+
+        <div class="motor-stats">
+          <div class="mstat">
+            <div class="mstat-label">Max Speed</div>
+            <div class="mstat-val" id="mstatRpm">50,000 RPM</div>
+            <div class="mstat-sub">vs ICE: ~15,000 RPM</div>
+          </div>
+          <div class="mstat">
+            <div class="mstat-label">Peak Power</div>
+            <div class="mstat-val" id="mstatPwr">350 kW</div>
+            <div class="mstat-sub">469 horsepower</div>
+          </div>
+          <div class="mstat">
+            <div class="mstat-label">Efficiency</div>
+            <div class="mstat-val" id="mstatEff">&gt;96%</div>
+            <div class="mstat-sub" id="mstatEffSub">Motor mode (deployment)</div>
+          </div>
+          <div class="mstat">
+            <div class="mstat-label">Energy Flow</div>
+            <div class="mstat-val" id="mstatFlow" style="color:var(--red)">Battery → Wheels</div>
+            <div class="mstat-sub" id="mstatFlowSub">Crankshaft gets extra torque</div>
+          </div>
+        </div>
+      </div>
+
+      <p class="section-body" id="motorModeDesc" style="margin-top:16px; font-size:14px;">
+        In <strong>motor mode</strong>, the SiC inverter converts battery DC into 3-phase AC.
+        That AC creates a <strong>rotating magnetic field</strong> in the stator.
+        The rotor's permanent magnets chase that field — generating torque on the crankshaft.
+        At corner exit, this happens instantly (zero lag), while the ICE is still building revs.
+      </p>
+    </div>
+
+    <!-- FOC Cards -->
+    <div style="margin-top:32px">
+      <p class="section-body" style="margin-bottom:20px">
+        The control architecture runs as <strong>nested real-time loops</strong> —
+        the same layered control logic used in industrial servo drives, just at ten times the power:
+      </p>
+      <div class="foc-grid">
+        <div class="foc-card">
+          <div class="foc-num">ms</div>
+          <div class="foc-label">Outer Loop — Strategy</div>
+          <div class="foc-desc">Lap-level energy budget. How many MJ to target per sector. Updated by Ferrari's pit wall. Pre-computed per circuit.</div>
+        </div>
+        <div class="foc-card">
+          <div class="foc-num">µs</div>
+          <div class="foc-label">Middle Loop — Torque Demand</div>
+          <div class="foc-desc">Reads Lewis's throttle/brake inputs. Translates to a torque request blended between ICE and MGU-K in real time.</div>
+        </div>
+        <div class="foc-card">
+          <div class="foc-num">ns</div>
+          <div class="foc-label">Inner Loop — FOC Current Control</div>
+          <div class="foc-desc">Field Oriented Control. Decomposes stator current into flux + torque components. SiC MOSFETs switch at tens of kHz. Exact torque delivery.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<div class="divider"></div>
+
+<!-- SECTION 5: BATTERY TRACKS -->
+<section id="section-bat" data-section="5">
+  <div class="section">
+    <div class="section-label">Section 05 — Circuit Strategy</div>
+    <h2 class="section-title">The Battery Is Never<br>The Same Twice</h2>
+    <p class="section-body">
+      How much energy Lewis can recover per lap depends entirely on the circuit.
+      A track with heavy braking is an energy-rich environment.
+      A flat-out track like Monza is an energy desert.
+      The FIA adjusts the recovery cap per race to prevent artificial driving.
+    </p>
+
+    <div class="battery-section">
+      <div class="battery-title">MAX RECOVERABLE ENERGY PER LAP — BY CIRCUIT TYPE</div>
+      <div class="battery-tracks">
+        <div class="battery-track-item">
+          <div class="bt-label">Monaco</div>
+          <div class="bt-bar-bg">
+            <div class="threshold"></div>
+            <div class="threshold-label">4MJ DELTA</div>
+            <div class="bt-bar-fill" style="height:100%; background: linear-gradient(to top, var(--green), rgba(57,255,20,0.4));"></div>
+          </div>
+          <div class="bt-val" style="color:var(--green)">9 MJ</div>
+        </div>
+        <div class="battery-track-item">
+          <div class="bt-label">Hungary</div>
+          <div class="bt-bar-bg">
+            <div class="threshold"></div>
+            <div class="threshold-label">4MJ DELTA</div>
+            <div class="bt-bar-fill" style="height:94%; background: linear-gradient(to top, var(--green), rgba(57,255,20,0.4));"></div>
+          </div>
+          <div class="bt-val" style="color:var(--green)">8.5 MJ</div>
+        </div>
+        <div class="battery-track-item">
+          <div class="bt-label">Silverstone</div>
+          <div class="bt-bar-bg">
+            <div class="threshold"></div>
+            <div class="threshold-label">4MJ DELTA</div>
+            <div class="bt-bar-fill" style="height:78%; background: linear-gradient(to top, var(--yellow), rgba(255,215,0,0.4));"></div>
+          </div>
+          <div class="bt-val" style="color:var(--yellow)">7 MJ</div>
+        </div>
+        <div class="battery-track-item">
+          <div class="bt-label">Spa</div>
+          <div class="bt-bar-bg">
+            <div class="threshold"></div>
+            <div class="threshold-label">4MJ DELTA</div>
+            <div class="bt-bar-fill" style="height:67%; background: linear-gradient(to top, var(--yellow), rgba(255,215,0,0.4));"></div>
+          </div>
+          <div class="bt-val" style="color:var(--yellow)">6 MJ</div>
+        </div>
+        <div class="battery-track-item">
+          <div class="bt-label">Monza</div>
+          <div class="bt-bar-bg">
+            <div class="threshold"></div>
+            <div class="threshold-label">4MJ DELTA</div>
+            <div class="bt-bar-fill" style="height:56%; background: linear-gradient(to top, var(--red), rgba(232,0,45,0.4));"></div>
+          </div>
+          <div class="bt-val" style="color:var(--red)">5 MJ</div>
+        </div>
+      </div>
+      <p style="font-size:12px; color:var(--mid); font-family:'Share Tech Mono',monospace; letter-spacing:0.05em;">
+        At Monza, Lewis runs on a continuously draining battery. At Monaco, he can almost fully recharge every lap.
+        The yellow threshold line marks the 4MJ delta rule — the maximum the battery can swing per lap in either direction.
+      </p>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stat-item">
+    <div class="stat-num">750</div>
+    <div class="stat-unit">kW Combined Peak</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">50k</div>
+    <div class="stat-unit">MGU-K Max RPM</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">9</div>
+    <div class="stat-unit">MJ Max Recovery/Lap</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">96%</div>
+    <div class="stat-unit">MGU-K Efficiency</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">11.5</div>
+    <div class="stat-unit">Sec Full Electric / Burst</div>
+  </div>
+  <div class="stat-item">
+    <div class="stat-num">50/50</div>
+    <div class="stat-unit">ICE / Electric Split</div>
+  </div>
+</div>
+
+<footer>
+  FERRARI SF-26 · 2026 FIA FORMULA ONE WORLD CHAMPIONSHIP
+  <br>Technical explainer built from FIA regulations, Ferrari engineering briefings & F1 technical documentation.
+</footer>
+
+<script>
+// ─── LAP SIMULATOR ───────────────────────────────────────────────
+const phases = [
+  {
+    name: "CORNER EXIT",
+    type: "accel",
+    ice: 400, mguk: 350, total: 750, bat: 72, regen: 0,
+    mode: "MOTOR ⚡",
+    desc: "Lewis squeezes the throttle. <strong>Both ICE (400kW) and MGU-K (350kW)</strong> push the crankshaft simultaneously. The MGU-K fires instantly — zero lag — while the ICE builds revs. Combined: 750kW to the rear wheels. Battery SoC drops.",
+    carPos: 8
+  },
+  {
+    name: "FULL THROTTLE STRAIGHT",
+    type: "flat",
+    ice: 400, mguk: 340, total: 740, bat: 55, regen: 0,
+    mode: "MOTOR ⚡",
+    desc: "Flat out on the straight. <strong>Full ICE + near-full MGU-K.</strong> Battery draining at 350kW. At this rate Lewis has roughly 11 seconds before the electric reserve is spent. Software is already calculating where to lift-and-coast to recover.",
+    carPos: 28
+  },
+  {
+    name: "SUPERCLIP",
+    type: "flat",
+    ice: 400, mguk: 0, total: 400, bat: 57, regen: 180,
+    mode: "GENERATOR 🔄",
+    desc: "<strong>Superclip:</strong> Above ~290 km/h the regulations taper the MGU-K's deployment to zero anyway. Ferrari's software flips the MGU-K into generator mode for 2-4 seconds at the end of the straight — harvesting from the ICE's excess torque before the braking zone. Lewis barely notices, but the battery ticks back up.",
+    carPos: 45
+  },
+  {
+    name: "BRAKING ZONE",
+    type: "brake",
+    ice: 60, mguk: 0, total: 60, bat: 82, regen: 350,
+    mode: "GENERATOR 🔄",
+    desc: "Lewis stamps the brakes. The MGU-K <strong>flips to generator mode</strong> — the decelerating crankshaft spins the motor backwards, generating electricity at up to 350kW back into the battery. The electromagnetic drag does most of the braking work. Rear brake discs are physically smaller in 2026 because of this.",
+    carPos: 62
+  },
+  {
+    name: "MID-CORNER",
+    type: "corner",
+    ice: 280, mguk: 120, total: 400, bat: 78, regen: 90,
+    mode: "MIXED ⚡/🔄",
+    desc: "<strong>The surprising one.</strong> Even through corners, energy is being managed. If the ICE is producing more torque than Lewis needs at part-throttle, the MGU-K can draw some of it as a generator — a controlled 'overdrive' programmed by Ferrari. Battery edges back up while maintaining corner speed.",
+    carPos: 78
+  },
+  {
+    name: "LIFT AND COAST",
+    type: "accel",
+    ice: 180, mguk: 0, total: 180, bat: 89, regen: 260,
+    mode: "GENERATOR 🔄",
+    desc: "<strong>Lift and Coast (Li-Co):</strong> Lewis lifts off early — well before the corner. No hard braking yet. The car slows under aero drag while the MGU-K harvests kinetic energy. He sacrifices a small amount of time here deliberately to <strong>bank electricity</strong> for the next corner exit where it matters most.",
+    carPos: 92
+  }
+];
+
+let currentPhase = -1;
+let autoTimer = null;
+let batValue = 65;
+
+const tagColors = { accel:'accel', flat:'flat', brake:'brake', corner:'corner' };
+
+function updateGauge(id, barId, value, max, unit) {
+  const el = document.getElementById(id);
+  const bar = document.getElementById(barId);
+  if (el) el.textContent = value + ' ' + unit;
+  if (bar) bar.style.width = Math.min(100, (value / max) * 100) + '%';
+}
+
+function nextPhase() {
+  currentPhase = (currentPhase + 1) % phases.length;
+  applyPhase(currentPhase);
+}
+
+function applyPhase(i) {
+  const p = phases[i];
+
+  // car position
+  document.getElementById('carDot').style.left = p.carPos + '%';
+
+  // gauges
+  updateGauge('gIce',   'bIce',   p.ice,   400, 'kW');
+  updateGauge('gMguk',  'bMguk',  p.mguk,  350, 'kW');
+  updateGauge('gTotal', 'bTotal', p.total, 800, 'kW');
+  updateGauge('gRegen', 'bRegen', p.regen, 350, 'kW');
+
+  // battery - simulate change
+  batValue = p.bat;
+  const batEl = document.getElementById('gBat');
+  const batBar = document.getElementById('bBat');
+  if (batEl) batEl.textContent = batValue + '%';
+  if (batBar) {
+    batBar.style.width = batValue + '%';
+    batBar.style.background = batValue > 65 ? 'var(--green)' : batValue > 35 ? 'var(--yellow)' : 'var(--red)';
+  }
+
+  // mode
+  const modeEl = document.getElementById('gMode');
+  if (modeEl) {
+    modeEl.textContent = p.mode;
+    modeEl.style.color = p.regen > 0 ? 'var(--electric)' : 'var(--red)';
+  }
+
+  // phase tag & description
+  const tag = document.getElementById('phaseTag');
+  const desc = document.getElementById('phaseDesc');
+  if (tag) {
+    tag.textContent = p.name;
+    tag.className = 'phase-tag ' + p.type;
+  }
+  if (desc) desc.innerHTML = p.desc;
+
+  // highlight active track zone
+  document.querySelectorAll('.zone').forEach((z, idx) => {
+    z.classList.toggle('active-zone', idx === i);
+  });
+
+  // badge
+  const badge = document.getElementById('simBadge');
+  if (badge) {
+    const labels = { accel:'DEPLOYING', flat:'FULL CHAT', brake:'BRAKING', corner:'HARVESTING' };
+    badge.textContent = labels[p.type] || 'RUNNING';
+  }
+
+  // counter
+  const counter = document.getElementById('lapCounter');
+  if (counter) counter.textContent = `Phase ${i + 1} / ${phases.length}`;
+}
+
+function resetSim() {
+  if (autoTimer) { clearInterval(autoTimer); autoTimer = null; }
+  currentPhase = -1;
+  document.getElementById('carDot').style.left = '0%';
+  document.getElementById('simBadge').textContent = 'READY';
+  document.getElementById('phaseTag').textContent = 'CORNER EXIT';
+  document.getElementById('phaseDesc').textContent = 'Press NEXT PHASE to start the lap.';
+  document.getElementById('lapCounter').textContent = 'Phase 0 / 6';
+  ['gIce','gMguk','gBat','gTotal','gMode','gRegen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.textContent = '—';
+  });
+  ['bIce','bMguk','bBat','bTotal','bRegen'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.width = '0%';
+  });
+  document.querySelectorAll('.zone').forEach(z => z.classList.remove('active-zone'));
+}
+
+function autoPlay() {
+  if (autoTimer) {
+    clearInterval(autoTimer);
+    autoTimer = null;
+    document.getElementById('btnAuto').textContent = '⏩ Auto Play';
+    return;
+  }
+  document.getElementById('btnAuto').textContent = '⏸ Pause';
+  nextPhase();
+  autoTimer = setInterval(() => {
+    if (currentPhase >= phases.length - 1) {
+      clearInterval(autoTimer);
+      autoTimer = null;
+      document.getElementById('btnAuto').textContent = '⏩ Auto Play';
+    } else {
+      nextPhase();
+    }
+  }, 2400);
+}
+
+// ─── ENERGY FLOW DIAGRAM ─────────────────────────────────────────
+function setFlowMode(mode) {
+  document.getElementById('tabDeploy').classList.toggle('active', mode === 'deploy');
+  document.getElementById('tabRegen').classList.toggle('active',  mode === 'regen');
+
+  const batInv   = document.getElementById('fa-bat-inv');
+  const batInvL  = document.getElementById('fa-bat-inv-lbl');
+  const invMguk  = document.getElementById('fa-inv-mguk');
+  const invMgukL = document.getElementById('fa-inv-mguk-lbl');
+  const toCrank  = document.getElementById('fa-to-crank');
+  const toCrankL = document.getElementById('fa-to-crank-lbl');
+  const batStat  = document.getElementById('fn-bat-stat');
+  const invStat  = document.getElementById('fn-inv-stat');
+  const crankStat= document.getElementById('fn-crank-stat');
+
+  if (mode === 'deploy') {
+    batInv.style.background   = 'var(--red)';
+    batInvL.textContent       = '→ DC out';
+    invMguk.style.background  = 'var(--red)';
+    invMgukL.textContent      = '→ 3-phase AC';
+    toCrank.style.background  = 'var(--yellow)';
+    toCrankL.textContent      = '→ torque added';
+    batStat.textContent       = 'DEPLETING';
+    batStat.style.color       = 'var(--red)';
+    invStat.textContent       = 'DC → AC';
+    crankStat.textContent     = '~750 kW';
+  } else {
+    batInv.style.background   = 'var(--green)';
+    batInvL.textContent       = '← DC charging';
+    invMguk.style.background  = 'var(--electric)';
+    invMgukL.textContent      = '← 3-phase AC';
+    toCrank.style.background  = 'var(--electric)';
+    toCrankL.textContent      = '← braking drag';
+    batStat.textContent       = 'CHARGING';
+    batStat.style.color       = 'var(--green)';
+    invStat.textContent       = 'AC → DC';
+    crankStat.textContent     = 'DECELERATING';
+  }
+}
+
+// ─── MOTOR MODE ──────────────────────────────────────────────────
+function setMotorMode(mode) {
+  document.getElementById('modeMotor').classList.toggle('active', mode === 'motor');
+  document.getElementById('modeGen').classList.toggle('active',   mode === 'gen');
+
+  const ring = document.getElementById('rotorRing');
+  const desc = document.getElementById('motorModeDesc');
+  const flow = document.getElementById('mstatFlow');
+  const flowSub = document.getElementById('mstatFlowSub');
+  const effSub  = document.getElementById('mstatEffSub');
+
+  if (mode === 'motor') {
+    ring.classList.remove('braking');
+    flow.textContent    = 'Battery → Wheels';
+    flow.style.color    = 'var(--red)';
+    flowSub.textContent = 'Crankshaft gets extra torque';
+    effSub.textContent  = 'Motor mode (deployment)';
+    desc.innerHTML = `In <strong>motor mode</strong>, the SiC inverter converts battery DC into 3-phase AC.
+      That AC creates a <strong>rotating magnetic field</strong> in the stator.
+      The rotor's permanent magnets chase that field — generating torque on the crankshaft.
+      At corner exit, this happens instantly (zero lag), while the ICE is still building revs.`;
+  } else {
+    ring.classList.add('braking');
+    flow.textContent    = 'Wheels → Battery';
+    flow.style.color    = 'var(--electric)';
+    flowSub.textContent = 'Crankshaft spins the generator';
+    effSub.textContent  = 'Generator mode (recovery)';
+    desc.innerHTML = `In <strong>generator mode</strong>, the decelerating crankshaft spins the rotor.
+      The permanent magnets sweep past the stator windings — by <strong>Faraday's Law</strong>, this induces a voltage.
+      That drives current back through the inverter and into the battery.
+      The electromagnetic drag this creates physically slows the car — which is why rear brake discs
+      are much smaller in 2026.`;
+  }
+}
+
+// ─── NAV DOTS ─────────────────────────────────────────────────────
+const sections = document.querySelectorAll('[data-section]');
+const navDots  = document.getElementById('navDots');
+
+sections.forEach((_, i) => {
+  const dot = document.createElement('button');
+  dot.className = 'nav-dot' + (i === 0 ? ' active' : '');
+  dot.title = `Section ${i}`;
+  dot.addEventListener('click', () => {
+    sections[i].scrollIntoView({ behavior: 'smooth' });
+  });
+  navDots.appendChild(dot);
+});
+
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const i = parseInt(entry.target.dataset.section);
+      document.querySelectorAll('.nav-dot').forEach((d, j) => {
+        d.classList.toggle('active', j === i);
+      });
+    }
+  });
+}, { threshold: 0.4 });
+
+sections.forEach(s => observer.observe(s));
+
+// init flow diagram
+setFlowMode('deploy');
+</script>
+</body>
+</html>
